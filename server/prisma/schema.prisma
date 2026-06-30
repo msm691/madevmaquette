@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Role: "ETUDIANT" | "COMMERCANT" | "ADMIN"
+// TypeRemise: "POURCENTAGE" | "MONTANT_FIXE" | "ARTICLE_OFFERT" | "AUTRE"
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         String   // ETUDIANT | COMMERCANT | ADMIN
+  prenom       String
+  nom          String
+  numeroCarte  String?  @unique
+  isActif               Boolean  @default(true)
+  statutInscription     String   @default("EN_ATTENTE")
+  documentAttestationUrl String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  commerce    Commerce?
+  passages    PassageHistorique[] @relation("EtudiantPassages")
+  validations PassageHistorique[] @relation("CommercantValidations")
+  favoris     Favori[]
+
+  @@map("users")
+}
+
+model Categorie {
+  id        Int        @id @default(autoincrement())
+  nom       String     @unique
+  slug      String     @unique
+  icone     String?
+  createdAt DateTime   @default(now())
+
+  commerces Commerce[]
+
+  @@map("categories")
+}
+
+model Commerce {
+  id             String   @id @default(uuid())
+  proprietaireId String   @unique
+  categorieId    Int
+  nom            String
+  description    String?
+  adresse        String
+  ville          String
+  codePostal     String
+  telephone      String?
+  emailContact   String?
+  siteWeb        String?
+  logoUrl        String?
+  estValide      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  proprietaire User      @relation(fields: [proprietaireId], references: [id])
+  categorie    Categorie @relation(fields: [categorieId], references: [id])
+  offres       Offre[]
+  passages     PassageHistorique[]
+  favoris      Favori[]
+
+  @@map("commerces")
+}
+
+model Offre {
+  id           String   @id @default(uuid())
+  commerceId   String
+  titre        String
+  description  String
+  typeRemise   String   // POURCENTAGE | MONTANT_FIXE | ARTICLE_OFFERT | AUTRE
+  valeurRemise Float?
+  dateDebut    DateTime
+  dateFin      DateTime?
+  estActive    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  commerce Commerce            @relation(fields: [commerceId], references: [id], onDelete: Cascade)
+  passages PassageHistorique[]
+
+  @@map("offres")
+}
+
+model PassageHistorique {
+  id          String   @id @default(uuid())
+  etudiantId  String
+  commerceId  String
+  offreId     String?
+  valideParId String
+  scanneLe    DateTime @default(now())
+
+  etudiant  User     @relation("EtudiantPassages", fields: [etudiantId], references: [id])
+  commerce  Commerce @relation(fields: [commerceId], references: [id])
+  offre     Offre?   @relation(fields: [offreId], references: [id])
+  validePar User     @relation("CommercantValidations", fields: [valideParId], references: [id])
+
+  @@map("passages_historique")
+}
+
+model Favori {
+  etudiantId String
+  commerceId String
+  createdAt  DateTime @default(now())
+
+  etudiant User     @relation(fields: [etudiantId], references: [id], onDelete: Cascade)
+  commerce Commerce @relation(fields: [commerceId], references: [id], onDelete: Cascade)
+
+  @@id([etudiantId, commerceId])
+  @@map("favoris")
+}
